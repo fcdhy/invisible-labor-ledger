@@ -1,0 +1,59 @@
+{
+  "name": "隐形劳动账本 · Invisible Labor Ledger",
+  "short_name": "隐形劳动",
+  "description": "把家庭里看不见的统筹、情绪、记忆与补救，记成可被统计、可被对峙的数据。",
+  "lang": "zh-CN",
+  "dir": "ltr",
+  "id": "./",
+  "start_url": "./index.html#/dict",
+  "scope": "./",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui", "browser"],
+  "orientation": "any",
+  "background_color": "#F5F2EA",
+  "theme_color": "#1C1B19",
+  "categories": ["productivity", "lifestyle", "utilities"],
+  "icons": [
+    {
+      "src": "./assets/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./assets/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./assets/icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "记一条",
+      "short_name": "记录",
+      "description": "把一句抱怨转成结构化条目",
+      "url": "./index.html#/capture",
+      "icons": [{ "src": "./assets/icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "看板",
+      "short_name": "看板",
+      "description": "本周分配率与红黑榜",
+      "url": "./index.html#/board",
+      "icons": [{ "src": "./assets/icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "周报",
+      "short_name": "周报",
+      "description": "生成家庭隐形劳动周报",
+      "url": "./index.html#/weekly",
+      "icons": [{ "src": "./assets/icons/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}

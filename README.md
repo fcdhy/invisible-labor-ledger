@@ -4,7 +4,7 @@
 
 一个纯前端的家庭隐形劳动计量工具。说一句抱怨，它输出一条结构化任务；记录满一周，它输出一份不含任何情绪词的周报。
 
-线上版：<https://fcdhy.github.io/invisible-labor-ledger/>
+线上版：<https://fcdhy.github.io/invisible-labor-ledger/>　（安卓 Chrome / iOS Safari 可「添加到主屏幕」，离线可用，见[装到手机上](#装到手机上安卓--ios)）
 
 ![词典](docs/shot-dictionary.png)
 
@@ -63,6 +63,42 @@ python -m http.server 8080
 1. 打开「设置」，把家政时薪改成你的城市行情（默认 ¥40/小时），成员名改成你们家的称呼。
 2. 打开「设置 → 数据 → 载入演示数据」，先看一眼完整效果。
 3. 清空数据，回到「记录」页，用你自己的话记一天。
+
+## 装到手机上（安卓 / iOS）
+
+这是一个可安装的 PWA：不经过应用商店，也不需要安装包。装好后有独立图标与启动画面，断网也能打开。
+
+**安卓（Chrome / Edge / 三星浏览器）**
+
+1. 手机浏览器打开 <https://fcdhy.github.io/invisible-labor-ledger/>
+2. 右上角 **⋮** → **安装应用**（旧版本叫「添加到主屏幕」）
+3. 桌面出现图标，点开即全屏运行，没有地址栏
+
+**iOS（Safari）**
+
+1. Safari 打开同一个网址
+2. 底部 **分享** → **添加到主屏幕**
+
+**注意事项**
+
+- 微信里打开需要用右上角 **…** → **在浏览器打开**，微信内置浏览器不支持安装。
+- 装好后联网打开一次，之后离线可用（`sw.js` 已缓存全部资源）。
+- 数据仍然只存在这台手机；换机或清缓存前先「设置 → 导出 JSON」。
+
+### 想要一个真正的 .apk 文件
+
+仓库本身不产出 APK（GitHub Pages 只托管静态文件）。确实需要安装包时，两条路：
+
+1. **PWABuilder（零配置）**：打开 <https://www.pwabuilder.com/>，输入站点地址，选 Android，下载生成的 APK / AAB。它把站点包成 Trusted Web Activity。
+2. **Bubblewrap（本地构建）**：
+   ```bash
+   npm i -g @bubblewrap/cli
+   bubblewrap init --manifest=https://fcdhy.github.io/invisible-labor-ledger/manifest.webmanifest
+   bubblewrap build
+   ```
+   需要 JDK 17 与 Android SDK。
+
+无论哪条路，APK 里装的都是同一个站点：更新网页即更新应用，断网时读本地缓存。
 
 ## 计量口径
 
@@ -220,12 +256,16 @@ python -m http.server 8080
 ```
 invisible-labor-ledger/
 ├── index.html              单页骨架
+├── manifest.webmanifest    PWA 清单（可安装、图标、快捷方式）
+├── sw.js                   Service Worker，离线缓存
 ├── assets/
 │   ├── style.css           账簿风格样式（浅色、纸感、单一赭红强调色）
 │   ├── dictionary.js       64 条隐形劳动词典（Prompt 01 的产物）
 │   ├── parser.js           规则分类器（Prompt 02 的落地）
 │   ├── report.js           统计与周报生成 + 禁用词自检（Prompt 03 的落地）
-│   └── app.js              状态、路由、六个视图、交互
+│   ├── app.js              状态、路由、六个视图、交互
+│   └── icons/              PWA 图标（192 / 512 / maskable）
+├── tools/                  图标源文件与重新生成脚本
 ├── docs/                   截图
 └── .github/workflows/pages.yml
 ```

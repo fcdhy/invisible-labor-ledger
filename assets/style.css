@@ -34,6 +34,13 @@
 
 html, body{ margin:0; padding:0; }
 
+/* 手机会自动放大正文（font boosting），会撑破表格与页头 —— 关掉 */
+html{
+  -webkit-text-size-adjust: 100%;
+  -moz-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
 body{
   background: var(--paper);
   color: var(--ink);
@@ -508,7 +515,7 @@ pre.json .n{ color: #D7C48B; }
 /* ---------------- Responsive ---------------- */
 
 @media (max-width: 980px){
-  .topbar{ height: auto; padding: 10px 16px; flex-wrap: wrap; gap: 10px 16px; }
+  .topbar{ height: auto; padding: calc(10px + env(safe-area-inset-top)) 16px 10px; flex-wrap: wrap; gap: 10px 16px; }
   .tabs{ order: 3; flex-basis: 100%; }
   .topmeta{ margin-left: auto; }
   .view{ padding: 22px 16px 56px; }
@@ -519,11 +526,49 @@ pre.json .n{ color: #D7C48B; }
 }
 @media (max-width: 620px){
   .g2, .g3, .g4{ grid-template-columns: 1fr; }
-  .footer{ padding: 20px 16px 40px; }
+  .footer{ padding: 20px 16px calc(40px + env(safe-area-inset-bottom)); }
   table.ledger th:nth-child(4), table.ledger td:nth-child(4){ display: none; }
   .kv{ grid-template-columns: 100px 1fr; }
   .feed li{ grid-template-columns: 52px 1fr; }
   .feed .r{ grid-column: 2; text-align: left; }
+
+  /* 手机上导航改为可横滑，且收紧间距让 6 项尽量一行放下 */
+  .tabs{ flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch;
+         scrollbar-width: none; gap: 2px; padding-bottom: 1px; }
+  .tabs::-webkit-scrollbar{ display: none; }
+  .tabs a{ white-space: nowrap; flex: 0 0 auto; padding: 8px 9px; font-size: 13px; letter-spacing: .02em; }
+  .tabs a.active::after{ left: 9px; right: 9px; }
+  .brand-txt p{ display: none; }
+  .topmeta{ font-size: 10px; gap: 5px; }
+  .topmeta b{ font-size: 11px; }
+  /* 触控目标不小于 40px */
+  .btn{ min-height: 38px; }
+  .btn.sm{ min-height: 32px; }
+  .chip{ padding: 6px 11px; font-size: 12px; }
+
+  /* 页头统计换行，避免挤出屏幕 */
+  .page-head{ align-items: flex-start; }
+  .page-head .row{ flex-wrap: wrap; gap: 14px 22px; }
+  .page-head .stat{ min-width: 0; }
+  .page-head p.lead{ font-size: 12.5px; }
+  .page-head h2{ font-size: 22px; }
+
+  /* 表格固定列宽，手机上不再横向溢出 */
+  table.ledger{ table-layout: fixed; font-size: 12.5px; }
+  table.ledger th, table.ledger td{ padding-left: 6px; padding-right: 6px; }
+  table.ledger th{ width: auto !important; }
+  table.ledger th:nth-child(1){ width: 26px !important; }
+  table.ledger th:nth-child(3){ width: 60px !important; }
+  table.ledger th:nth-child(5){ width: 52px !important; }
+  table.ledger th:nth-child(4), table.ledger td:nth-child(4){ display: none; }
+  table.ledger td .note{ font-size: 11px; }
+  table.ledger .btn.sm{ font-size: 10px; padding: 3px 4px; min-height: 26px; }
+  .stars{ font-size: 9.5px; }
+  .stars span{ margin-right: 0; }
+
+  /* 词典工具栏：搜索独占一行 */
+  .dict-toolbar input[type=text]{ max-width: none !important; flex: 1 1 100%; }
+  .dict-toolbar .grow{ display: none; }
 }
 
 @media print{

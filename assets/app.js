@@ -114,6 +114,68 @@
 
   function nowISO() { return new Date().toISOString(); }
 
+  /* ---------------- 安装到手机（PWA） ---------------- */
+
+  let deferredPrompt = null;
+
+  window.addEventListener('beforeinstallprompt', function (e) {
+    e.preventDefault();
+    deferredPrompt = e;
+    if (UI.view === 'settings') render();
+  });
+
+  window.addEventListener('appinstalled', function () {
+    deferredPrompt = null;
+    toast('已安装到桌面');
+    if (UI.view === 'settings') render();
+  });
+
+  function isStandalone() {
+    return (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) ||
+      window.navigator.standalone === true;
+  }
+
+  function isAndroid() { return /Android/i.test(navigator.userAgent); }
+
+  function isIOS() {
+    return /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  }
+
+  function siteURL() { return location.origin + location.pathname; }
+
+  function installCard() {
+    const head = '<div class="card-title">装到手机</div>';
+
+    if (isStandalone()) {
+      return '<div class="card dark">' + head +
+        '<p class="small" style="color:rgba(245,242,234,.82);line-height:1.9;margin:0">' +
+        '当前已作为独立应用运行：无地址栏，断网可打开，数据仍只存在本机。' +
+        '如需更新，联网打开一次即可自动拉取新版本。</p></div>';
+    }
+
+    let steps;
+    if (isAndroid()) {
+      steps = 'Chrome 右上角 <b>⋮</b> → <b>安装应用</b>（旧版叫「添加到主屏幕」）';
+    } else if (isIOS()) {
+      steps = 'Safari 底部 <b>分享</b> → <b>添加到主屏幕</b>';
+    } else {
+      steps = '桌面 Chrome / Edge 地址栏右侧的<b>安装</b>图标 → 安装';
+    }
+
+    return '<div class="card">' + head +
+      '<p class="small muted" style="margin:0 0 12px;line-height:1.8">' +
+      '装到桌面后有独立图标与启动画面，离线可用，不会把数据上传到任何服务器。</p>' +
+      '<div class="row" style="margin-bottom:12px">' +
+      (deferredPrompt ? '<button class="btn accent sm" data-act="install">立即安装</button>' : '') +
+      '<button class="btn ghost sm" data-act="copy-link">复制本站链接</button>' +
+      '</div>' +
+      '<p class="small" style="margin:0;line-height:1.85">手动方式：' + steps + '</p>' +
+      '<p class="small muted" style="margin:8px 0 0;line-height:1.85">' +
+      '把上面的链接发到手机微信/浏览器里打开，再按上述步骤添加。iOS 只能通过 Safari 添加。</p>' +
+      '</div>';
+  }
+
   /* ---------------- 路由 ---------------- */
 
   const VIEWS = ['dict', 'capture', 'board', 'weekly', 'prompts', 'settings'];
@@ -789,7 +851,8 @@
         '</div>' +
 
         '<div>' +
-          '<div class="card">' +
+          installCard() +
+          '<div class="card" style="margin-top:18px">' +
             '<div class="card-title">数据</div>' +
             '<div class="row" style="margin-bottom:10px">' +
               '<button class="btn ghost sm" data-act="export-json">导出 JSON</button>' +
@@ -1004,6 +1067,17 @@
       case 'copy-all-prompts': copy(PROMPTS.map(p => p.title + '\n\n' + p.body).join('\n\n---\n\n'), '三段提示词已复制'); break;
 
       /* 设置 */
+      case 'install': {
+        if (!deferredPrompt) { toast('请用浏览器菜单里的「安装应用」'); break; }
+        deferredPrompt.prompt();
+        deferredPrompt.userChoice.then(function (res) {
+          if (res && res.outcome === 'accepted') toast('正在安装');
+          deferredPrompt = null;
+          render();
+        }).catch(function () { deferredPrompt = null; render(); });
+        break;
+      }
+      case 'copy-link': copy(siteURL(), '链接已复制'); break;
       case 'export-json': download('隐形劳动账本_备份.json', JSON.stringify(S, null, 2), 'application/json'); break;
       case 'export-csv': exportCSV(); break;
       case 'import': { const f = $('#fileimport'); if (f) f.click(); break; }
@@ -1231,6 +1305,27 @@
     route();
     checkAutoReport();
     setInterval(checkAutoReport, 60000);
+    registerSW();
+    maybeInstallHint();
+  }
+
+  function registerSW() {
+    if (!('serviceWorker' in navigator)) return;
+    if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') return;
+    navigator.serviceWorker.register('sw.js').catch(function () { /* 离线缓存不可用不影响主功能 */ });
+  }
+
+  /* 手机首次打开时提示一次：怎么装到桌面 */
+  function maybeInstallHint() {
+    if (isStandalone()) return;
+    try { if (localStorage.getItem('ill.installHint')) return; } catch (e) { return; }
+    if (!/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) return;
+    setTimeout(function () {
+      toast(isAndroid()
+        ? '想装到桌面？Chrome 右上角 ⋮ → 安装应用'
+        : '想装到桌面？Safari 分享 → 添加到主屏幕');
+      try { localStorage.setItem('ill.installHint', '1'); } catch (e) {}
+    }, 2600);
   }
 
   window.addEventListener('hashchange', route);
