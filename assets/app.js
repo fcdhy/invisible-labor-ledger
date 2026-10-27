@@ -890,8 +890,29 @@
 
   let recog = null;
   let listening = false;
+  let micReady = false;
+  let nativeVoice = false;
 
   function initMic() {
+    if (micReady) return;
+    micReady = true;
+
+    // APK（WebView）里没有 Web Speech API，走原生语音桥
+    if (window.AndroidVoice && typeof window.AndroidVoice.start === 'function') {
+      nativeVoice = true;
+      window.__nativeVoiceResult = function (text, isFinal) {
+        const ta = $('#raw');
+        if (ta) { ta.value = text; UI.raw = text; }
+        if (isFinal) stopMic();
+      };
+      window.__nativeVoiceError = function (msg) {
+        const st = $('#micstat');
+        if (st) st.textContent = '识别中断：' + msg;
+        stopMic();
+      };
+      return;
+    }
+
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) {
       const b = $('#micbtn');
@@ -919,7 +940,20 @@
   }
 
   function startMic() {
-    if (!recog) { initMic(); if (!recog) return; }
+    initMic();
+
+    if (nativeVoice) {
+      listening = true;
+      const nb = $('#micbtn');
+      if (nb) nb.classList.add('rec');
+      const nl = $('#miclabel'); if (nl) nl.textContent = '正在听…（点击停止）';
+      const nst = $('#micstat'); if (nst) nst.textContent = '';
+      try { window.AndroidVoice.start(); } catch (e) { stopMic(); }
+      return;
+    }
+
+    if (!recog) { toast('当前环境不支持语音识别，请用文字输入'); return; }
+
     try {
       recog.start();
       listening = true;
@@ -935,6 +969,11 @@
     const b = $('#micbtn');
     if (b) b.classList.remove('rec');
     const l = $('#miclabel'); if (l) l.textContent = '语音输入';
+
+    if (nativeVoice) {
+      try { window.AndroidVoice.stop(); } catch (e) {}
+      return;
+    }
     try { recog && recog.stop(); } catch (e) {}
   }
 

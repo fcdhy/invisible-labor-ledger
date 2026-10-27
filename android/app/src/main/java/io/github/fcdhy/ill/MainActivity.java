@@ -1,23 +1,41 @@
 package io.github.fcdhy.ill;
 
+import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.Activity;
+import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.os.Build;
 import android.os.Bundle;
+import android.speech.RecognitionListener;
+import android.speech.RecognizerIntent;
+import android.speech.SpeechRecognizer;
 import android.view.KeyEvent;
 import android.view.ViewGroup;
+import android.webkit.JavascriptInterface;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 
+import org.json.JSONObject;
+
+import java.util.ArrayList;
+
 /**
  * 把一个纯静态网页装进 WebView：
  * 页面全部打包在 assets/web 下，不联网也能用，数据存 WebView 的 localStorage。
+ *
+ * 另外挂了一个 AndroidVoice 桥：WebView 不支持 Web Speech API，
+ * 语音输入改用系统 SpeechRecognizer，结果回填到网页输入框。
  */
 public class MainActivity extends Activity {
 
+    private static final int REQ_AUDIO = 3001;
+
     private WebView web;
+    private SpeechRecognizer recognizer;
+    private boolean pendingVoiceStart = false;
 
     @SuppressLint("SetJavaScriptEnabled")
     @Override
@@ -49,6 +67,7 @@ public class MainActivity extends Activity {
             s.setAllowUniversalAccessFromFileURLs(true);
         }
 
+        web.addJavascriptInterface(new VoiceBridge(), "AndroidVoice");
         web.setWebViewClient(new WebViewClient());
         setContentView(web);
 
@@ -59,10 +78,145 @@ public class MainActivity extends Activity {
         }
     }
 
+    /* ---------------- 语音桥 ---------------- */
+
+    public class VoiceBridge {
+        @JavascriptInterface
+        public void start() {
+            runOnUiThread(MainActivity.this::startVoice);
+        }
+
+        @JavascriptInterface
+        public void stop() {
+            runOnUiThread(MainActivity.this::stopVoice);
+        }
+    }
+
+    private void startVoice() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M
+                && checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            pendingVoiceStart = true;
+            requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO}, REQ_AUDIO);
+            return;
+        }
+        if (!SpeechRecognizer.isRecognitionAvailable(this)) {
+            emitError("设备上没有语音识别服务");
+            return;
+        }
+        if (recognizer == null) {
+            recognizer = SpeechRecognizer.createSpeechRecognizer(this);
+            recognizer.setRecognitionListener(new Listener());
+        }
+        Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
+        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, "zh-CN");
+        intent.putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true);
+        intent.putExtra(RecognizerIntent.EXTRA_CALLING_PACKAGE, getPackageName());
+        recognizer.startListening(intent);
+    }
+
+    private void stopVoice() {
+        if (recognizer != null) {
+            try {
+                recognizer.stopListening();
+            } catch (Exception ignored) {
+            }
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == REQ_AUDIO) {
+            boolean ok = grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED;
+            if (ok && pendingVoiceStart) {
+                pendingVoiceStart = false;
+                startVoice();
+            } else {
+                pendingVoiceStart = false;
+                emitError("没有麦克风权限");
+            }
+        }
+    }
+
+    private class Listener implements RecognitionListener {
+        @Override
+        public void onPartialResults(Bundle partialResults) {
+            String text = first(partialResults, SpeechRecognizer.RESULTS_RECOGNITION);
+            if (text != null && !text.isEmpty()) emitResult(text, false);
+        }
+
+        @Override
+        public void onResults(Bundle results) {
+            String text = first(results, SpeechRecognizer.RESULTS_RECOGNITION);
+            emitResult(text == null ? "" : text, true);
+        }
+
+        @Override
+        public void onError(int error) {
+            emitError(errorText(error));
+        }
+
+        @Override public void onReadyForSpeech(Bundle params) { }
+        @Override public void onBeginningOfSpeech() { }
+        @Override public void onRmsChanged(float rmsdB) { }
+        @Override public void onBufferReceived(byte[] buffer) { }
+        @Override public void onEndOfSpeech() { }
+        @Override public void onEvent(int eventType, Bundle params) { }
+    }
+
+    private String first(Bundle bundle, String key) {
+        if (bundle == null) return null;
+        ArrayList<String> list = bundle.getStringArrayList(key);
+        return (list == null || list.isEmpty()) ? null : list.get(0);
+    }
+
+    private String errorText(int error) {
+        switch (error) {
+            case SpeechRecognizer.ERROR_AUDIO: return "录音出错";
+            case SpeechRecognizer.ERROR_CLIENT: return "客户端错误";
+            case SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS: return "没有麦克风权限";
+            case SpeechRecognizer.ERROR_NETWORK: return "网络不可用";
+            case SpeechRecognizer.ERROR_NETWORK_TIMEOUT: return "网络超时";
+            case SpeechRecognizer.ERROR_NO_MATCH: return "没听清，再说一次";
+            case SpeechRecognizer.ERROR_RECOGNIZER_BUSY: return "识别器忙";
+            case SpeechRecognizer.ERROR_SERVER: return "识别服务出错";
+            case SpeechRecognizer.ERROR_SPEECH_TIMEOUT: return "没有检测到说话";
+            default: return "识别中断（" + error + "）";
+        }
+    }
+
+    private void emitResult(String text, boolean isFinal) {
+        String js = "window.__nativeVoiceResult&&window.__nativeVoiceResult("
+                + JSONObject.quote(text) + "," + isFinal + ")";
+        web.evaluateJavascript(js, null);
+    }
+
+    private void emitError(String message) {
+        String js = "window.__nativeVoiceError&&window.__nativeVoiceError("
+                + JSONObject.quote(message) + ")";
+        web.evaluateJavascript(js, null);
+    }
+
+    /* ---------------- 生命周期 ---------------- */
+
     @Override
     protected void onSaveInstanceState(Bundle outState) {
         super.onSaveInstanceState(outState);
         if (web != null) web.saveState(outState);
+    }
+
+    @Override
+    protected void onDestroy() {
+        if (recognizer != null) {
+            try {
+                recognizer.destroy();
+            } catch (Exception ignored) {
+            }
+            recognizer = null;
+        }
+        if (web != null) web.destroy();
+        super.onDestroy();
     }
 
     @Override
