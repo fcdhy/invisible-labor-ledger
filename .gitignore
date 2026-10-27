@@ -3,3 +3,11 @@ __seed_*.html
 .DS_Store
 Thumbs.db
 *.log
+
+# Android
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/app/src/main/assets/web/
+*.iml
