@@ -4,7 +4,7 @@
 
 一个纯前端的家庭隐形劳动计量工具。说一句抱怨，它输出一条结构化任务；记录满一周，它输出一份不含任何情绪词的周报。
 
-线上版：<https://fcdhy.github.io/invisible-labor-ledger/>　（安卓 Chrome / iOS Safari 可「添加到主屏幕」，离线可用，见[装到手机上](#装到手机上安卓--ios)）
+线上版：<https://fcdhy.github.io/invisible-labor-ledger/>　·　安卓安装包：[下载 APK](https://github.com/fcdhy/invisible-labor-ledger/releases/latest/download/invisible-labor-ledger.apk)（约 152 KB，网页内置，离线可用）
 
 ![词典](docs/shot-dictionary.png)
 
@@ -85,20 +85,33 @@ python -m http.server 8080
 - 装好后联网打开一次，之后离线可用（`sw.js` 已缓存全部资源）。
 - 数据仍然只存在这台手机；换机或清缓存前先「设置 → 导出 JSON」。
 
-### 想要一个真正的 .apk 文件
+### 下载 APK（安卓安装包）
 
-仓库本身不产出 APK（GitHub Pages 只托管静态文件）。确实需要安装包时，两条路：
+**直接下载** → <https://github.com/fcdhy/invisible-labor-ledger/releases/latest/download/invisible-labor-ledger.apk>
 
-1. **PWABuilder（零配置）**：打开 <https://www.pwabuilder.com/>，输入站点地址，选 Android，下载生成的 APK / AAB。它把站点包成 Trusted Web Activity。
-2. **Bubblewrap（本地构建）**：
-   ```bash
-   npm i -g @bubblewrap/cli
-   bubblewrap init --manifest=https://fcdhy.github.io/invisible-labor-ledger/manifest.webmanifest
-   bubblewrap build
-   ```
-   需要 JDK 17 与 Android SDK。
+手机点开下载好的文件 → 允许「安装未知来源应用」→ 安装。约 152 KB，网页整个打在包里，**不联网也能用**。
 
-无论哪条路，APK 里装的都是同一个站点：更新网页即更新应用，断网时读本地缓存。
+| 项 | 值 |
+|---|---|
+| 包名 | `io.github.fcdhy.ill` |
+| 版本 | 1.0.1（versionCode 2） |
+| 形态 | 原生 WebView 壳，加载 `assets/web/index.html` |
+| 语音 | 走系统 `SpeechRecognizer` 中文听写，首次使用需授予麦克风权限 |
+| 数据 | 存在 App 内部，与浏览器版互不相通；卸载即清除，换机前先导出 JSON |
+
+**自己构建**：仓库带 `.github/workflows/android-apk.yml`，改到 `android/**` 或手动 Run workflow 就会出包，产物自动发布到 Releases。
+
+本地构建需要 JDK 17 与 Android SDK：
+
+```bash
+cd android
+mkdir -p app/src/main/assets/web
+cp ../index.html ../manifest.webmanifest app/src/main/assets/web/
+cp -r ../assets app/src/main/assets/web/assets
+gradle assembleRelease   # → app/build/outputs/apk/release/app-release.apk
+```
+
+签名密钥 `android/app/release.keystore` 已随仓库提供（口令 `android`），保证后续版本能覆盖安装而不是报签名冲突。
 
 ## 计量口径
 
@@ -266,8 +279,12 @@ invisible-labor-ledger/
 │   ├── app.js              状态、路由、六个视图、交互
 │   └── icons/              PWA 图标（192 / 512 / maskable）
 ├── tools/                  图标源文件与重新生成脚本
+├── android/                安卓工程（WebView 壳，产出 APK）
+│   └── app/src/main/java/io/github/fcdhy/ill/MainActivity.java
 ├── docs/                   截图
-└── .github/workflows/pages.yml
+└── .github/workflows/
+    ├── pages.yml           部署网页
+    └── android-apk.yml     构建 APK 并发布 Release
 ```
 
 ## 隐私
