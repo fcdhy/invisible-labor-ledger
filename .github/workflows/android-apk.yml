@@ -7,7 +7,6 @@ on:
     paths:
       - 'android/**'
       - '.github/workflows/android-apk.yml'
-  tags: ['v*']
 
 permissions:
   contents: write
